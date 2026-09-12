@@ -1,99 +1,243 @@
 import requests
 import os
 import time
-from dotenv import load_dotenv
 
-load_dotenv("/storage/emulated/0/Documents/Python_files/apikey.env")
+total_tokens1 = 0 # creating total tokens variable to keep track of total tokens usage of model 1
+total_tokens2 = 0 # creating total tokens variable to keep track of total tokens usage of model 2
+apikey =  os.getenv("GroqApiKey")# getting api key from environment variable
+context = [None] # initiating conversation history
+model = None # creating model variable to store model name
 
-apikey = os.getenv("GroqApiKey1")
-context = [] # initiating conversation history
-TotalTokens = 0
-#---------------------------------------------------
-print("""Models: 
-Type "1" for openai/gpt-oss-120b
-Type "2" for openai/gpt-oss-20b""")
-model = input("\nChoose model: ") # taking model name
+def select_model(): # function to select model
 
-if model == "1":
-    model = "openai/gpt-oss-120b"
-    print(f"\n{model} selected")
-elif model == "2":
-    model = "openai/gpt-oss-20b"
-    print(f"\n{model} selected.")
-else:
-    model = "openai/gpt-oss-20b"
-    print(f"\nBecause your model input was invalid, system selected {model}.")
-#-----------------------------------------------------
-system = input("\nEnter system instructions: ") # taking system instructions
+    global model # declaring model as global variable to use it outside the function
 
-if not system or system.isspace():
-    system = "Use strictly robotic, neutral(emotionless), calm,concise, analytical, factual and balanced energy tone. *Your name is 'Measured'." # creating default system instructions
-    print("\nSystem selected default system instructions.")
+    print("""\nModels:
+Type "1" for - openai/gpt-oss-120b
+Type "2" for - openai/gpt-oss-20b""") # displaying model options
 
-context.append({"role": "system", "content": system}) # appending system instructions
-#-----------------------------------------------------
-while TotalTokens < 100000: # creating conversation loop
+    while True:
 
-    user = input("\nEnter your message: ") # taking user message    
-    user_message = {"role": "user","content": user} # storing user message
-#-----------------------------------------------------
-# sending user messages and generating AI response
+        model = input("\nEnter model: ") # taking model name
+
+        if model == "1": # checking user input and selecting model
+
+            model = "openai/gpt-oss-120b"
+            print(f"\n{model} selected")
+            return
+        
+        elif model == "2":
+            model = "openai/gpt-oss-20b"
+            print(f"\n{model} selected.")
+            return
+        
+        else:
+            print("\nInvalid input.") # skipping the loop if input is invalid
+
+def system(): # function to select system instructions
+
+    while True: # looping until user input is valid
+
+        system_instructions = input("\nEnter system instructions (or type '//default' to choose default system instruction): ")  # taking system instructions
+        
+        if not system_instructions or system_instructions.isspace(): # checking if system instructions are empty or whitespace
+            print('\nInvalid input.')
+            continue
+
+        elif system_instructions.lower() == "//default": # checking if user wants to choose default system instructions
+            system_instructions = "Strictly use neutral(emotionless), calm, robotic, concise, analytical, factual and balanced energy tone. *Your name is 'Measured'." # creating default system instructions
+            print("\nDefault system instructions selected successfully.")
+
+        else: # checking if user wants to change system instructions
+            print("\nSystem instructions changed successfully.")
+  
+        context[0] = ({"role": "system", "content": system_instructions}) # appending system instructions to context
+
+        return
+        
+def change_model():
+
+    global model # declaring model as global variable to use it outside the function
+
+    if model == "openai/gpt-oss-120b": # checking model and printing total tokens usage of model 1
+        print("\nTotal tokens usage of model 1 is very high.")
+    elif model == "openai/gpt-oss-20b": # checking model and printing total tokens usage of model 2
+        print("\nTotal tokens usage of model 2 is very high.")
+
+    print("\nYou can continue the session by changing the model.")
+
+    while True: # looping until user input is valid
+
+        change = input("\nDo you want to change the model? (y/n): ") # taking user input to change model
+
+        if change.lower() == "y": # checking user input
+
+            if model == "openai/gpt-oss-120b": # changing model
+                model = "openai/gpt-oss-20b"
+
+            elif model == "openai/gpt-oss-20b":
+                model = "openai/gpt-oss-120b"
+                
+            print(f"\nModel changed to {model}.")
+
+            return model # returning new model name
+
+        elif change.lower() == "n": # checking if user want to exit the session
+            return "//exit"
+        
+        else:
+            print("\nInvalid input.") # skipping the loop if input is invalid
+
+
+def posting(model,context): # function to send user messages and generate AI response
+
+    user_message = input("""\nType your message
+Or type '//exit' to exit 
+Or type '//change model' to change the model
+Or type '//show model' to show the current model
+Or type '//change system' to change the system instructions
+Or type '//show system' to show the current system instructions: """) # taking user message
+
+    if (user_message.lower() == "//exit" or user_message.lower() == "//change model" or user_message.lower() == "//change system"): # checking user_message
+        return user_message,None # returning user message and None
+   
+# sending user messages and generating AI response 
     try:
-        posting = requests.post(
+        response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers = {"Authorization": f"Bearer {apikey}"},
-            json = {
+            headers={"Authorization": f"Bearer {apikey}"},
+            json={
                 "model": model,
-                "messages": context + [user_message],
-                "max_completion_tokens": 700
-
+                "messages": context + [{"role": "user", "content": user_message}],
+                "max_completion_tokens": 700,
+                "temperature": 0.5,
+                "top_p": 0.3
             },
             timeout=20
         )
-#-----------------------------------------------------------  
-        if posting.status_code >= 400: # getting detailed HTTP error
-            print("Status:", posting.status_code)
-            print("Response:", posting.text)
+        
+# handling errors
+        if response.status_code > 399: # printing detailed HTTP error
+            print(f"\nSTATUS CODE: {response.status_code}")
+            print(f"\nHTTP ERROR(DETAILED): {response.text}")
 
-        posting.raise_for_status()# raising HTTP errors
+        response.raise_for_status() # raising HTTP errors
 
-        response = posting.json() 
-        ai_response = response["choices"][0]["message"]["content"] # storing AI response
+        final_response = response.json() # storing final response json
 
-    # Creating conversation history
-        context.append(user_message) # appending user message
-        context.append({"role": "assistant","content": ai_response}) # appeding AI response
-#-----------------------------------------------------------
-        TotalTokens += response["usage"]["total_tokens"] # adding tokens
-        print("\n")
-        for char in ai_response:
-            print(char, end='',flush=True)
-            time.sleep(0.01) # printing AI response(simulated streaming effect)
+        return user_message,final_response # returning user message and final response json
+    
+    except requests.exceptions.HTTPError as e: # handling HTTP error
+        print(f"\nHTTP Error: {e}")
 
-        print(f"\nTOTAL TOKENS USED: {TotalTokens}\n") # printing total used tokens
-#-----------------------------------------------------------
-    except IndexError: # handling invalid index error
-        print("Invalid Index.")
-    except KeyError: # handling invalid key error
-        print("Expected response format wasn't received.")
+    except requests.exceptions.JSONDecodeError as e: # handling JSON decode error
+        print(f"\nInvalid JSON error: {e}")
 
-    except requests.exceptions.HTTPError as e: # handling HTTP errors
-        print(f"HTTP Error: {e}")
-
-    except requests.exceptions.JSONDecodeError as e: # handling invalid JSON format error
-        print(f"Invalid JSON format: {e}")
-
-    # handling timed out and connection errors
-    except requests.exceptions.ConnectTimeout as e:
-        print(f"Connection Timed out: {e}")
-    except requests.exceptions.ReadTimeout as e:
-        print(f"Read Timed out: {e}")
-    except requests.exceptions.Timeout as e:# for fallback error handling.
-            print(f"Timeout: {e}")
-    except requests.exceptions.ConnectionError as e:
-        print(f"Connection Error: {e}")
+    except requests.exceptions.ConnectTimeout as e: # handling connect timeout error
+        print(f"\nConnect timed out error: {e}")
+    except requests.exceptions.ReadTimeout as e: # handling read timeout error
+        print(f"\nRead timed out error: {e}")
+    except requests.exceptions.Timeout as e: # for fallback error
+        print(f"\nTimed out error: {e}")
+    except requests.exceptions.ConnectionError as e: # handling connection error
+        print(f"\nConnection error: {e}")
 
     except Exception as e: # handling other errors
-        print(f"New Error found: {e}")
+        print(f"\nNew error found: {e}")
+  
+def operations(): # function to perform operations like sending user messages, generating AI response, changing model and system instructions
 
-print("Your limit has reached.")
+    global total_tokens1 # declaring total_tokens1 as global variable to use it outside the function
+    global total_tokens2 # declaring total_tokens2 as global variable to use it outside the function
+
+    while True: # looping until user wants to exit the session
+
+        if total_tokens1 + total_tokens2 >= 180000: # ending the session if user hit the token limit of both models
+            print("\n🛑 Token usage of both models has reached the limit. Session exited. All your data will be deleted .")
+            return "//exit"
+        
+        if ( # checking if total tokens usage of any model has reached the limit
+            (model == "openai/gpt-oss-120b" and total_tokens1 >= 90000)
+            or
+            (model == "openai/gpt-oss-20b" and total_tokens2 >= 90000)
+        ):
+            change_model_output = change_model() # asking user to change the model if total tokens usage of any model has reached the limit
+
+            if change_model_output.lower() == "//exit": # checking if user wants to exit the session
+                print("\n⏹️ Session exited. All your data will be deleted.")
+                return "//exit"
+
+        output2 = posting(model, context)  # receiving user message in output2[0] and raw json in output2[1]
+
+        if not output2: # skipping the loop if output2 is None
+            continue
+
+        user_message, final_response = output2 # unpacking user message and final response json from output2
+
+        if user_message.lower() == "//exit": # checking if user wants to exit the session
+            print("\n⏹️ Session exited. All your data will be deleted.")
+            return "//exit"
+
+        elif user_message.lower() == "//change model": # checking if user wants to change the model
+            select_model() # calling select_model() function to change the model
+            continue
+
+        elif user_message.lower() == "//show model": # checking if user wants to show the current model
+            print(f"\n⚙️ Current model: {model}") # printing current model
+            continue
+
+        elif user_message.lower() == "//change system": # checking if user wants to change the system instructions
+            system() # calling system() function to change the system instructions
+            continue
+
+        elif user_message.lower() == "//show system": # checking if user wants to show the current system instructions
+            print(f"\n🔣 Current system instructions: {context[0]['content']}") # printing current system instructions
+            continue
+
+        try:
+        
+            ai_response = final_response["choices"][0]["message"]["content"] # extracting ai response from the response json
+
+            if model == "openai/gpt-oss-120b": # checking model and updating total tokens usage
+                total_tokens1 += final_response["usage"]["total_tokens"] # adding tokens to total tokens of model 1
+
+            elif model == "openai/gpt-oss-20b": # checking model and updating total tokens usage
+                total_tokens2 += final_response["usage"]["total_tokens"] # adding tokens to total tokens of model 2
+    
+        except KeyError as e: # handling key error
+            print(f"\nKey error occured: {e}")
+            continue
+        except TypeError as e: # handling value error
+            print(f"\nType error occured: {e}")
+            continue
+        
+        context.append({"role": "user", "content": user_message}) # appending user message
+        context.append({"role": "assistant", "content": ai_response}) # appending ai response
+
+        if len(context) > 21: # deleting oldest user-AI pair if context length exceeds 21
+            del context[1:(len(context)-20)]
+
+        return ai_response
+
+
+def display(ai_response,total_tokens1,total_tokens2): # function to display AI response and total tokens usage
+
+        print("\n◈ AI's RESPONSE:") # printing AI response (simulated streaming effect)
+        for ch in ai_response:
+            print(ch,end="",flush=True)
+            time.sleep(0.01)
+    
+        print(f"\n\n💠 TOTAL TOKENS USED: {total_tokens1 + total_tokens2}") # printing total tokens usage 
+        print(f"💠 TOTAL TOKENS OF MODEL 1: {total_tokens1}") # printing total tokens usage of model 1
+        print(f"💠 TOTAL TOKENS OF MODEL 2: {total_tokens2}") # printing total tokens usage of model 2
+
+select_model() # calling select_model() function to select model
+system() # calling system() function to select system instructions
+
+while True: # looping until user wants to exit the session
+
+    ai_response = operations() # calling operations() function to perform operations like sending user messages, generating AI response, changing model and system instructions
+    if ai_response == "//exit": # checking if user wants to exit the session
+        break
+
+    display(ai_response,total_tokens1,total_tokens2) # calling display() function to display AI response and total tokens usage
