@@ -98,7 +98,11 @@ Or type '//show model' to show the current model
 Or type '//change system' to change the system instructions
 Or type '//show system' to show the current system instructions: """) # taking user message
 
-    if (user_message.lower() == "//exit" or user_message.lower() == "//change model" or user_message.lower() == "//change system"): # checking user_message
+    if (user_message.lower() == "//exit" 
+        or user_message.lower() == "//change model" 
+        or user_message.lower() == "//show model" 
+        or user_message.lower() == "//change system" 
+        or user_message.lower() == "//show system"): # checking user_message
         return user_message,None # returning user message and None
    
 # sending user messages and generating AI response 
